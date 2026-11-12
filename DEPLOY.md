@@ -59,6 +59,17 @@ agentpentest-lock off
 
 Restore it with `agentpentest-lock on` when you are done.
 
+### Live-host gate (Kali only)
+
+Beyond the run lock, real host execution (running tools directly via `LocalSandbox`,
+and real-mode persistence) **only unlocks on a Kali Linux host** — it refuses with a
+`LiveHostError` elsewhere. `DockerSandbox` is exempt because it runs its own Kali
+container. On an authorized non-Kali dev/CI box, override deliberately:
+
+```bash
+export AGENTPENTEST_ALLOW_NON_KALI=1
+```
+
 ## 3b. Sudo for privileged tools
 
 Many nmap scan types (SYN scan `-sS`, OS detection `-O`, etc.) require root
