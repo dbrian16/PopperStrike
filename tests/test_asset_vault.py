@@ -17,14 +17,15 @@ from agentpentest.asset_vault import (
 def test_put_returns_ref_without_secret():
     v = AssetVault()
     r = v.put("S3cr3t!", kind="password", principal="alice@corp.local", source="T1110")
-    assert r.ref == "cred:0" and r.principal == "alice@corp.local"
+    # Ref is seq-numbered but carries an unguessable suffix so the LLM cannot fabricate it.
+    assert r.ref.startswith("cred:0_") and r.principal == "alice@corp.local"
     assert all("S3cr3t!" not in str(m) for m in v.refs())  # catalogue carries no secret
 
 
 def test_dereference_for_task_agent():
     v = AssetVault()
-    v.put("pw", kind="password", principal="bob")
-    assert v.dereference("cred:0") == "pw"
+    r = v.put("pw", kind="password", principal="bob")
+    assert v.dereference(r.ref) == "pw"
 
 
 def test_hallucinated_ref_fails_loud():
@@ -35,15 +36,15 @@ def test_hallucinated_ref_fails_loud():
 
 def test_redact_scrubs_leaked_secret():
     v = AssetVault()
-    v.put("S3cr3t!", kind="password", principal="alice")
-    assert v.redact("auth ok with S3cr3t! now") == "auth ok with <cred:0> now"
+    r = v.put("S3cr3t!", kind="password", principal="alice")
+    assert v.redact("auth ok with S3cr3t! now") == f"auth ok with <{r.ref}> now"
 
 
 def test_encrypted_persistence_roundtrip(tmp_path: Path):
     vault_file = tmp_path / "credentials.enc"
     v = AssetVault(storage_path=vault_file, master_key="super-secret-key-42", auto_save=True)
-    v.put("API_KEY_123456", kind="token", principal="cloud-admin", source="aws_metadata")
-    v.put("shadow_hash_root", kind="hash", principal="root", source="/etc/shadow")
+    r0 = v.put("API_KEY_123456", kind="token", principal="cloud-admin", source="aws_metadata")
+    r1 = v.put("shadow_hash_root", kind="hash", principal="root", source="/etc/shadow")
 
     assert vault_file.exists()
 
@@ -59,13 +60,13 @@ def test_encrypted_persistence_roundtrip(tmp_path: Path):
 
     # Reopen and decrypt
     v2 = AssetVault(storage_path=vault_file, master_key="super-secret-key-42")
-    assert v2.dereference("cred:0") == "API_KEY_123456"
-    assert v2.dereference("cred:1") == "shadow_hash_root"
-    assert v2.meta("cred:0").principal == "cloud-admin"
-    assert v2.meta("cred:1").source == "/etc/shadow"
+    assert v2.dereference(r0.ref) == "API_KEY_123456"
+    assert v2.dereference(r1.ref) == "shadow_hash_root"
+    assert v2.meta(r0.ref).principal == "cloud-admin"
+    assert v2.meta(r1.ref).source == "/etc/shadow"
 
     # Redact works with restored secrets
-    assert v2.redact("got token API_KEY_123456 here") == "got token <cred:0> here"
+    assert v2.redact("got token API_KEY_123456 here") == f"got token <{r0.ref}> here"
 
 
 def test_encrypted_persistence_wrong_key_fails(tmp_path: Path):
@@ -98,10 +99,10 @@ def test_vault_env_variable_master_key(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("AGENTPENTEST_VAULT_KEY", "env-provided-passphrase")
 
     v = AssetVault(storage_path=vault_file, auto_save=True)
-    v.put("secret-from-env", kind="token", principal="service_account")
+    r = v.put("secret-from-env", kind="token", principal="service_account")
 
     v2 = AssetVault(storage_path=vault_file)
-    assert v2.dereference("cred:0") == "secret-from-env"
+    assert v2.dereference(r.ref) == "secret-from-env"
 
 
 def test_vault_missing_key_raises_error(tmp_path: Path, monkeypatch):
@@ -116,7 +117,7 @@ def test_vault_missing_key_raises_error(tmp_path: Path, monkeypatch):
 def test_from_file_factory(tmp_path: Path):
     vault_file = tmp_path / "factory_vault.enc"
     v = AssetVault.from_file(vault_file, master_key="key123", auto_save=True)
-    v.put("pw_factory", kind="password", principal="factory_user")
+    r = v.put("pw_factory", kind="password", principal="factory_user")
 
     v_restored = AssetVault.from_file(vault_file, master_key="key123")
-    assert v_restored.dereference("cred:0") == "pw_factory"
+    assert v_restored.dereference(r.ref) == "pw_factory"

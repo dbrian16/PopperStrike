@@ -21,7 +21,7 @@ explicitly authorized to test. The examples below assume a lab VM you control
 Kali already has the tools. On plain Ubuntu/Debian:
 
 ```bash
-sudo apt update && sudo apt install -y nmap gobuster python3-pip
+sudo apt update && sudo apt install -y nmap gobuster python3-pip python3-venv
 # subfinder: install from the ProjectDiscovery release or your package manager
 python3 --version        # need 3.11+
 ```
@@ -29,14 +29,16 @@ python3 --version        # need 3.11+
 Install the package:
 
 ```bash
-cd AI-Agent-Pentest
-pip install -e .
+cd PopperStrike  # or your cloned directory name
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e .
 ```
 
 ## 2. (Optional) local model
 
-The autonomous loop needs a self-hosted model to reason. Cloud API hosts are refused
-in code. Point it at Ollama on this box or another machine on the LAN:
+For local reasoning, configure Ollama on this box or another machine on the LAN.
+Provider support varies by entry point; the dashboard expects local Ollama:
 
 ```bash
 export AGENTPENTEST_OLLAMA_HOST=http://127.0.0.1:11434
@@ -52,10 +54,10 @@ The run lock can be removed from the command line **or via the UI** (click the
 🔓 button that appears in the sidebar when the lock is active).
 
 ```bash
-rm agentpentest/RUN_DISABLED
+agentpentest-lock off
 ```
 
-Put it back (`touch agentpentest/RUN_DISABLED`) when you are done.
+Restore it with `agentpentest-lock on` when you are done.
 
 ## 3b. Sudo for privileged tools
 

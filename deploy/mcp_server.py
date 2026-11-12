@@ -34,10 +34,11 @@ def main() -> None:
     if args.tool_allowlist:
         os.environ["RECON_TOOL_ALLOWLIST"] = ",".join(args.tool_allowlist)
 
-    scope_str = ", ".join(args.scope) if args.scope else "(open)"
-    print(f"[mcp] RECON_ALLOW_SHELL=1  scope={scope_str}")
-    print("[mcp] run_command and run_poc are ACTIVE. Authorized targets only.")
-    print()
+    scope_str = os.environ.get("RECON_SCOPE", "").strip() or "(empty; deny all)"
+    # stdout is reserved for MCP protocol frames when using stdio transport.
+    print(f"[mcp] RECON_ALLOW_SHELL=1  scope={scope_str}", file=sys.stderr)
+    print("[mcp] run_command and run_poc are ACTIVE. Authorized targets only.",
+          file=sys.stderr)
 
     from agentpentest import mcp_server as _srv
     transport = os.environ.get("RECON_MCP_TRANSPORT", "stdio")

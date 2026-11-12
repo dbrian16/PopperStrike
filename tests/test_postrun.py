@@ -8,6 +8,33 @@ from agentpentest.autonomous import Step
 from agentpentest.postrun import DiscoveredService, MatchedCVE, PostRunSynthesizer, post_run_report
 
 
+def test_empty_report_does_not_invent_services():
+    synth = PostRunSynthesizer("lab", "empty", [], threat_intel=lambda _: {})
+    assert synth.services == []
+    assert synth.metrics["total_services"] == 0
+
+
+def test_service_protocols_and_adjacent_output_lines_stay_separate():
+    step = Step(command=[], target="lab", rationale="", facts={},
+                raw="53/tcp open domain\n53/udp open domain dns-server\n")
+    synth = PostRunSynthesizer("lab", "protocols", [step], threat_intel=lambda _: {})
+    services = {s.protocol: s for s in synth.services}
+    assert set(services) == {"tcp", "udp"}
+    assert services["tcp"].version == ""
+    assert services["udp"].version == "dns-server"
+
+
+def test_shared_port_does_not_verify_an_unrelated_cve():
+    step = Step(command=["check", "--port", "80"], target="lab", rationale="",
+                facts={}, raw="POC-OK: unrelated check")
+    synth = PostRunSynthesizer("lab", "evidence", [step], threat_intel=lambda _: {})
+    finding = MatchedCVE(id="CVE-2021-41773", port=80)
+    synth.matched_cves = [finding]
+    synth._link_poc_evidence()
+    assert finding.source != "poc_verified"
+    assert finding.proof_output == ""
+
+
 def test_postrun_harvests_and_matches_cve(tmp_path: Path) -> None:
     target = "192.168.1.100"
     run_id = "test-run-1"

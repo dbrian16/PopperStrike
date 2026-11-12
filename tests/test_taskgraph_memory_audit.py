@@ -6,6 +6,49 @@ from agentpentest.memorydb import MemoryDB, MemoryError
 from agentpentest.taskgraph import PlanError, Task, TaskKind, TaskStatus, can_finish
 
 
+def test_revisions_are_independent_between_runs():
+    db = MemoryDB()
+    try:
+        for run_id in ("first", "second"):
+            db.open_run(run_id, "goal", ["lab"])
+            db.add_task(run_id, Task(run_id + "-task", TaskKind.DISCOVER, "lab", "inspect"))
+            assert db.revision(run_id) == 1
+        assert db.conn.execute("SELECT COUNT(*) FROM transitions").fetchone()[0] == 2
+    finally:
+        db.close()
+
+
+def test_interrupted_transaction_rolls_back():
+    db = MemoryDB()
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            with db._tx():
+                db.conn.execute("INSERT INTO runs VALUES ('interrupted', '', '[]', 'running', 0)")
+                raise KeyboardInterrupt()
+        assert not db.conn.in_transaction
+        assert db.revision("interrupted") == -1
+        db.open_run("next", "goal", ["lab"])
+    finally:
+        db.close()
+
+
+def test_legacy_transition_schema_migrates_without_losing_rows(tmp_path):
+    import sqlite3
+    path = tmp_path / "legacy.sqlite"
+    with sqlite3.connect(path) as conn:
+        conn.execute("CREATE TABLE transitions (revision INTEGER PRIMARY KEY, run_id TEXT, "
+                     "kind TEXT, task_id TEXT, detail TEXT, created_at REAL)")
+        conn.execute("INSERT INTO transitions VALUES (1, 'old', 'event', NULL, '{}', 1)")
+    db = MemoryDB(path)
+    try:
+        db.open_run("new", "goal", ["lab"])
+        db.add_task("new", Task("new-task", TaskKind.DISCOVER, "lab", "inspect"))
+        rows = db.conn.execute("SELECT run_id, revision FROM transitions ORDER BY run_id").fetchall()
+        assert [tuple(row) for row in rows] == [("new", 1), ("old", 1)]
+    finally:
+        db.close()
+
+
 # ---- taskgraph rules ----
 def test_exploit_requires_done_test_on_same_target():
     g = {"t1": Task("t1", TaskKind.TEST, "box.lab", "probe", status=TaskStatus.DONE)}

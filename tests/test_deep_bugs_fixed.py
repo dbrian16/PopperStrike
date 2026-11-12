@@ -121,12 +121,12 @@ def test_lateral_candidates_evaluates_all_ports():
 def test_asset_vault_redact_ordering():
     vault = AssetVault()
     # Insert shorter secret first, then longer secret that contains it
-    vault.put("admin", kind="password", principal="admin")
-    vault.put("administrator", kind="password", principal="administrator")
+    r0 = vault.put("admin", kind="password", principal="admin")
+    r1 = vault.put("administrator", kind="password", principal="administrator")
 
     redacted = vault.redact("Logging in as administrator and admin")
-    assert "<cred:1>" in redacted  # administrator
-    assert "<cred:0>" in redacted  # admin
+    assert f"<{r1.ref}>" in redacted  # administrator
+    assert f"<{r0.ref}>" in redacted  # admin
     assert "istrator" not in redacted  # must not leave partial suffix unredacted
 
 

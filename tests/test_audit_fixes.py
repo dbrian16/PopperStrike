@@ -71,9 +71,10 @@ def test_sec5_env_flag_flips_default_to_fail_closed():
 
 class _FakeReq:
     """Enough of a handler to call Handler._same_origin unbound (no real socket)."""
-    def __init__(self, host, origin=None):
+    def __init__(self, host, origin=None, command="GET"):
         self.headers = {"Host": host, **({"Origin": origin} if origin else {})}
         self.server = type("S", (), {"server_port": 8765})()
+        self.command = command
 
 
 def test_sec6_dashboard_refuses_cross_origin_post():

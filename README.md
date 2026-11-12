@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![Core Dependencies](https://img.shields.io/badge/dependencies-stdlib--only-green.svg)](pyproject.toml)
 [![Protocol](https://img.shields.io/badge/FastMCP-2.0+-purple.svg)](https://github.com/jlowin/fastmcp)
-[![Tests](https://img.shields.io/badge/tests-485%20passed%20(100%25)-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-regression%20suite-blue.svg)](tests/)
 [![MITRE ATT&CK](https://img.shields.io/badge/mapped--to-MITRE%20ATT%26CK-red.svg)](https://attack.mitre.org/)
 [![Epistemic Standard](https://img.shields.io/badge/epistemology-Karl%20Popper%20Falsification-darkred.svg)](#the-popperian-paradigm)
 [![License](https://img.shields.io/badge/license-Research%20%2F%20Educational-lightgrey.svg)](LICENSE)
@@ -163,6 +163,15 @@ pip install -e .
 # Optional: Install FastMCP dependencies for Model Context Protocol integration
 pip install -e ".[mcp]"
 ```
+
+### Setup for Kali Linux
+Run the installer on your Kali lab machine:
+```bash
+bash kali_setup.sh
+source .venv/bin/activate
+agentpentest-ui --no-browser
+```
+Open `http://127.0.0.1:8765` on Kali. See [DEPLOY.md](DEPLOY.md) for live lab configuration and run-lock instructions. Installation does not start scans or install an AI model.
 
 ---
 
@@ -343,18 +352,7 @@ The test suite covers deterministic verifiers, AST analysis, circuit breakers, r
 python -m pytest -q
 ```
 
-```text
-........................................................................ [ 14%]
-........................................................................ [ 29%]
-........................................................................ [ 44%]
-........................................................................ [ 59%]
-........................................................................ [ 74%]
-........................................................................ [ 89%]
-.....................................................                    [100%]
-485 passed in 12.89s
-```
-
-All 485 tests run without external dependencies and validate:
+Install pytest separately in the lab virtual environment before running this command. Test results must be checked on the target environment; no pass count is guaranteed. The suite covers:
 * Mathematical canary calculation and OLS linear regression accuracy
 * SSRF validation, CIDR containment, and ShellGuard argument checks
 * Circuit breaker trip, reset, and per-target isolation logic

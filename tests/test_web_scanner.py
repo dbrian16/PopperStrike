@@ -212,3 +212,14 @@ def test_run_web_assessment_end_to_end():
     assert "Web Application Security Assessment" in report_md
     assert "SQL Injection Vulnerabilities (CRITICAL)" in report_md
     assert "Cross-Site Scripting (XSS) Findings" in report_md
+
+
+def test_web_assessment_allow_internal_param():
+    """Verify allow_internal flag is properly accepted and forwarded."""
+    mock_text = lambda u: "<html><body><p>Hello internal</p></body></html>"
+    results = run_web_assessment(
+        "http://127.0.0.1:8888/test?q=val",
+        allow_internal=True,
+        http_text_client=mock_text,
+    )
+    assert results["target"] == "http://127.0.0.1:8888/test?q=val"
