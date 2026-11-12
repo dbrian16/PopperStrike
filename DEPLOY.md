@@ -70,6 +70,21 @@ container. On an authorized non-Kali dev/CI box, override deliberately:
 export AGENTPENTEST_ALLOW_NON_KALI=1
 ```
 
+### Verified live kill-chain
+
+`killchain.drive_live` walks the KnowledgeGraph from a foothold to an objective with REAL
+execution, advancing one hop at a time **only on deterministic proof** (evidence_gate tier
+CONFIRMED); unproven hops are pruned and the chain re-routes, and looted credentials open
+new routes. Execution goes through a Kali-gated sandbox.
+
+```python
+from agentpentest import autonomous, killchain
+from agentpentest.sandbox import LocalSandbox          # refuses off-Kali
+execute = autonomous.sandbox_execute(LocalSandbox())
+kc, trace = killchain.drive_live(graph, "me", "host:DC", execute, seed_creds=creds)
+print(kc.reached, [h.to for h in trace])
+```
+
 ## 3b. Sudo for privileged tools
 
 Many nmap scan types (SYN scan `-sS`, OS detection `-O`, etc.) require root

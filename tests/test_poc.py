@@ -140,55 +140,55 @@ def test_breaker_does_not_interfere_on_clean_validation():
 # --- obfuscate_script + synthesize_poc obfuscate=True ---------------------------
 
 def test_obfuscate_script_returns_obfuscated_with_target():
-    obfed = f"_v0 = '{TARGET}'\nprint('POC-OK: ' + _v0)"
-    r = ScriptedReasoner([_fenced(obfed)])
+    # Python: deterministic packer runs first; no LLM call needed.
+    r = ScriptedReasoner([])
     result = obfuscate_script(f"print('POC-OK: {TARGET}')", "python", TARGET, r)
     assert TARGET in result, "target must survive obfuscation"
-    assert "_v0" in result, "obfuscated variant must be returned"
-    assert "obfuscat" in r.systems[0].lower(), "obfuscation prompt must explain the task"
+    assert "base64" in result, "packer wraps in base64-decode-exec"
+    assert len(r.systems) == 0, "packer should short-circuit before LLM for python"
 
 
 def test_obfuscate_script_falls_back_when_target_lost():
-    # LLM encodes the target away -> fall back to original for safety
-    encoded_without_target = _fenced("_h = __import__('base64').b64decode(b'ZXZpbA==').decode()\n"
-                                     "print('POC-OK: ' + _h)")
+    # Go: packer is a no-op, so LLM runs. LLM drops target -> fall back to original.
+    encoded_without_target = _fenced("_h = 'evil'\nfmt.Println(_h)")
     r = ScriptedReasoner([encoded_without_target])
-    original = f"print('POC-OK: {TARGET}')"
-    result = obfuscate_script(original, "python", TARGET, r)
-    assert result == original, "must fall back to original when target literal is dropped"
+    original = f'fmt.Println("{TARGET}")'
+    result = obfuscate_script(original, "go", TARGET, r)
+    assert result == original, "must fall back to original when LLM drops target"
 
 
 def test_synthesize_poc_obfuscates_before_run():
     plain = f"print('POC-OK: {TARGET}')"
-    obfed = f"_x = '{TARGET}'; print('POC-OK: ' + _x)"
-    # ask order: synth script -> obfusc -> (no fix needed)
-    r = ScriptedReasoner([_fenced(plain), _fenced(obfed)])
+    # packer takes over for python; synth only needs one LLM call
+    r = ScriptedReasoner([_fenced(plain)])
     run = ScriptedRunner([RunResult(0, f"POC-OK: hit {TARGET}", "")])
     res = synthesize_poc(_spec(), r, run, obfuscate=True)
     assert res.validated
-    # runner received the obfuscated variant, not the plain one
-    assert "_x" in run.scripts[0], "runner should get the obfuscated script"
+    # runner received the packed variant (base64-decode-exec wrapper)
+    assert "base64" in run.scripts[0], "runner should get the packed script"
 
 
 def test_synthesize_poc_obfusc_fallback_on_target_lost():
-    plain = f"print('POC-OK: {TARGET}')"
-    bad_obf = _fenced("print('POC-OK: encoded')")  # no TARGET literal
+    # Packer always preserves target for python, so to exercise the LLM-drops-target
+    # fallback we need a language where pack_script is a no-op (Go).
+    plain = f'fmt.Println("{TARGET}")'
+    bad_obf = _fenced("fmt.Println(\"encoded\")")  # no TARGET literal
+    spec_go = PoCSpec(goal="test", target=TARGET, scope=[TARGET], language="go")
     r = ScriptedReasoner([_fenced(plain), bad_obf])
     run = ScriptedRunner([RunResult(0, f"POC-OK: hit {TARGET}", "")])
-    res = synthesize_poc(_spec(), r, run, obfuscate=True)
+    res = synthesize_poc(spec_go, r, run, obfuscate=True)
     assert res.validated
-    assert TARGET in run.scripts[0], "runner gets original when obfuscation drops target"
+    assert TARGET in run.scripts[0], "runner gets original when LLM obfuscation drops target"
 
 
 def test_execute_and_validate_with_obfuscation():
-    obfed = f"_h = '{TARGET}'; print('POC-OK: hit ' + _h)"
-    r = ScriptedReasoner([_fenced(obfed)])
+    r = ScriptedReasoner([])
     run = ScriptedRunner([RunResult(0, f"POC-OK: hit {TARGET}", "")])
-    original = f"print('{TARGET}')"
+    original = f"print('POC-OK: hit {TARGET}')"
     res, ok, evidence = execute_and_validate(original, "python", TARGET, run,
                                              obfuscate=True, reasoner=r)
     assert ok
-    assert "_h" in run.scripts[0], "runner receives the obfuscated variant"
+    assert "base64" in run.scripts[0], "runner receives the packed (base64-exec) variant"
 
 
 # --- execute_and_validate: the MCP-exposable single-shot path (no Reasoner) -------
