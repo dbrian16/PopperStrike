@@ -13,6 +13,7 @@ dependencies = []                     # core is stdlib-only
 
 [project.optional-dependencies]
 mcp = ["fastmcp>=2.0"]                # only the MCP server needs this
+dev = ["pytest>=8", "ruff"]          # test + lint toolchain (CI)
 
 [project.scripts]
 agentpentest = "agentpentest.campaign:_cli"          # full pipeline (simulation)
@@ -36,3 +37,12 @@ agentpentest = ["data/*.json", "data/*.csv", "webui_static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 110
+
+[tool.ruff.lint]
+# Conservative starter set: real bugs (pyflakes) + import hygiene. Style rules can be
+# widened later once the tree is clean; CI runs ruff as advisory (non-gating) for now.
+select = ["F", "E9", "I"]
