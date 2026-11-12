@@ -99,3 +99,28 @@ if __name__ == "__main__":
         if name.startswith("test_") and callable(fn):
             fn()
             print("ok", name)
+
+
+# ---- one-call drive() entry + offline path preview --------------------------
+def test_drive_one_call_reaches_objective():
+    from agentpentest.killchain import drive
+    g = _g([("me", "a", "LEADS_TO"), ("a", "b", "LEADS_TO"), ("b", "DC", "ADMIN_TO")])
+    kc, trace = drive(g, "me", "DC", _actor())
+    assert kc.reached
+    assert [h.to for h in trace] == ["a", "b", "DC"]
+
+
+def test_preview_paths_is_readonly_and_lists_routes():
+    from agentpentest.killchain import preview_paths
+    g = _g([("me", "a", "LEADS_TO"), ("a", "DC", "ADMIN_TO"),
+            ("a", "b", "LEADS_TO"), ("b", "DC", "ADMIN_TO")])
+    routes = preview_paths(g, "me", "DC")
+    assert routes and all("me" in r and "DC" in r for r in routes)
+    # read-only: nothing was marked compromised by a mere preview
+    assert g.nodes["DC"].props.get("compromised") is not True
+
+
+def test_preview_paths_empty_when_unreachable():
+    from agentpentest.killchain import preview_paths
+    g = _g([("me", "a", "LEADS_TO")])     # no route to DC (DC not even a node)
+    assert preview_paths(g, "me", "DC") == []
