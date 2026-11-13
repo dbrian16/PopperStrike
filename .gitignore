@@ -32,8 +32,26 @@ Thumbs.db
 # Local secrets, never commit these (none should ever exist in this repo)
 .env
 .env.*
+!.env.example
 *.pem
 *.key
+*.pfx
+*.p12
+id_rsa*
+id_ed25519*
+secrets.*
+credentials*.json
+
+# Local databases / logs / scratch written by live runs
+*.sqlite
+*.sqlite3
+*.db
+*.log
+
+# Local AI-assistant / tooling state and private notes
+.claude/
+CLAUDE.md
+docs/
 
 # agentpentest/RUN_DISABLED is intentionally tracked (run lock).
 

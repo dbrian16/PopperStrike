@@ -320,7 +320,7 @@ Add the following configuration to `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "pentagent": {
+    "popperstrike": {
       "command": "python",
       "args": ["deploy/mcp_server.py", "--scope", "192.168.1.50", "--allow-internal"],
       "env": {
